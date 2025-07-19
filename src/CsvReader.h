@@ -18,7 +18,7 @@ public:
     using Token = std::string;
     using Line = std::vector<Token>;
 
-    explicit CsvReader(const std::string &filename, const bool header = true);
+    explicit CsvReader(std::string_view filename, bool containsHeader = true);
 
     // Return the next line from the csv file.
     std::optional<Line> GetNext();
