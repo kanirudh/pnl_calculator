@@ -8,60 +8,79 @@
 #include <stdexcept>
 #include <__ostream/basic_ostream.h>
 
-TradeProcessor::TradeProcessor(std::string_view mode) : mode_(mode == "LIFO" ? Mode::LIFO : Mode::FIFO) {
-
-
-}
+TradeProcessor::TradeProcessor(std::string_view mode) : mode_(mode == "LIFO" ? Mode::LIFO : Mode::FIFO) {}
 
 TradeProcessor::~TradeProcessor() {
-    if (not trades_.empty()) {
-        throw std::runtime_error("All buy and sell should match");
+    if (not buy_orders_.empty() or not sell_orders_.empty()) {
+        std::cerr << "Total buy and sell should have matched" << std::endl;
     }
 }
 
-void ProcessLIFO(Trade trade, auto& resting, auto& aggressive) {
+double ProcessLIFO(Trade trade, auto& resting, auto& aggressive, double sign) {
+    double pnl = 0;
+    while (trade.quantity > 0 and not resting.empty()) {
+        auto& other = resting.back();
+        auto matched = std::min(other.quantity, trade.quantity);
+        other.quantity -= matched;
+        trade.quantity -= matched;
 
+        pnl += matched * (trade.price - other.price) * sign;
+
+        if (other.quantity == 0) {
+            resting.pop_back();
+        }
+    }
+    if (trade.quantity > 0) {
+        // Enqueue the remaining order
+        aggressive.push_back(trade);
+    }
+    return pnl;
 }
 
-void ProcessFIFO(Trade trade, auto& resting, auto& aggressive) {
+double ProcessFIFO(Trade trade, auto& resting, auto& aggressive, const double sign) {
     auto itr = resting.begin();
-    for (; tradeitr != resting.end() and trade.quantity > 0; ++itr) {
+    double pnl = 0;
+
+    for (; itr != resting.end() and trade.quantity > 0; ++itr) {
         auto matched = std::min(itr->quantity, trade.quantity);
         trade.quantity -= matched;
         trade.price += matched;
-        pnl += matched * (trade.price - itr->price);
+        pnl += matched * (trade.price - itr->price) * sign;
     }
-    if (pnl > 0) {
-        PublishPnl(trade.timestamp, trade.symbol, pnl);
-        // Remove traded orders.
+        // Check and remove the final traded orders.
         if (itr->quantity == 0) {
             ++itr;
         }
         resting.erase(resting.begin(), itr);
-    }
     if (trade.quantity > 0) {
         aggressive.emplace_back(trade);
     }
+    return pnl;
 }
 
 void TradeProcessor::Process(Trade trade) {
     double pnl = 0;
     if (trade.side == Side::BUY) {
         if (mode_ == Mode::FIFO) {
-            ProcessFIFO(trade, sell_orders_, buy_orders_);
+            pnl = ProcessFIFO(trade, sell_orders_, buy_orders_, -1);
         } else {
-            ProcessLIFO(trade, sell_orders_, buy_orders_);
+            pnl = ProcessLIFO(trade, sell_orders_, buy_orders_, -1);
         }
     } else {
         if (mode_ == Mode::FIFO) {
-            ProcessFIFO(trade, buy_orders_, sell_orders_);
+            pnl = ProcessFIFO(trade, buy_orders_, sell_orders_, 1);
         } else {
-            ProcessLIFO(trade, buy_orders_, sell_orders_);
+            pnl = ProcessLIFO(trade, buy_orders_, sell_orders_, 1);
         }
+    }
+
+    // TODO(anirudh): Can there be traded but with zero pnl ?
+    if (pnl > 0) {
+        PublishPnl(trade.timestamp, trade.symbol, pnl);
     }
 }
 
 void TradeProcessor::PublishPnl(uint32_t timestamp, std::string_view symbol, double pnl) {
     // TODO(anirudh): Fix this poor man's csv writer.
-    std::cout << timestmap << "," << symbol << "," << pnl << std::endl;
+    std::cout << timestamp << "," << symbol << "," << pnl << std::endl;
 }

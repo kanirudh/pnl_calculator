@@ -10,7 +10,7 @@ processor_(mode) {}
 void PnlCalculator::Run() {
     // TODO(anirudh): Implement this.
      for (auto line = reader_.GetNext(); not line; line = reader_.GetNext()) {
-        processor_.Process(ParserTrade(*line));
+        processor_.Process(ParseTrade(*line));
     }
 }
 
