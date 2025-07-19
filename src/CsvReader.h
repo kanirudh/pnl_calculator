@@ -6,11 +6,11 @@
 #define PARSER_H
 
 
+class CsvReader {
+    CsvReader(std::string_view filename);
 
-class parser {
-
+public:
 };
-
 
 
 #endif //PARSER_H
