@@ -7,11 +7,8 @@
 
 #include "CsvReader.h"
 #include "string_view"
+#include "TradeProcessor.h"
 
-enum class MODE {
-    LIFO = 0,
-    FIFO = 1
-};
 
 // This is the main class acting as a mediator between all components for this standard utility
 class PnlCalculator {
@@ -21,8 +18,10 @@ public:
     void Run();
 
 private:
+    static Trade ParseTrade(std::vector<std::string> tokens);
+
     CsvReader reader_;
-    MODE mode_;
+    TradeProcessor processor_;
 };
 
 
