@@ -8,7 +8,7 @@
 #include <stdexcept>
 #include <__ostream/basic_ostream.h>
 
-TradeProcessor::TradeProcessor(std::string_view mode) : mode_(mode == "lifo" ? Mode::LIFO : Mode::FIFO) {}
+TradeProcessor::TradeProcessor(std::string_view mode, std::string_view symbol, PnlPublisherI& publisher) : mode_(mode == "lifo" ? Mode::LIFO : Mode::FIFO) , symbol_(symbol) , publisher_(publisher){}
 
 TradeProcessor::~TradeProcessor() {
     if (not buy_orders_.empty() or not sell_orders_.empty()) {
@@ -16,7 +16,7 @@ TradeProcessor::~TradeProcessor() {
     }
 }
 
-std::optional<double> ProcessLIFO(Trade trade, auto& resting, auto& aggressive, double sign) {
+std::optional<double> ProcessLIFO(Order trade, auto& resting, auto& aggressive, double sign) {
     double pnl = 0;
     int traded = 0;
     while (trade.quantity > 0 and not resting.empty()) {
@@ -42,7 +42,7 @@ std::optional<double> ProcessLIFO(Trade trade, auto& resting, auto& aggressive, 
     return std::nullopt;
 }
 
-std::optional<double> ProcessFIFO(Trade trade, auto& resting, auto& aggressive, const double sign) {
+std::optional<double> ProcessFIFO(Order trade, auto& resting, auto& aggressive, const double sign) {
     auto itr = resting.begin();
     double pnl = 0;
     int traded = 0;
@@ -66,7 +66,7 @@ std::optional<double> ProcessFIFO(Trade trade, auto& resting, auto& aggressive, 
     return std::nullopt;
 }
 
-void TradeProcessor::Process(Trade trade) {
+void TradeProcessor::Process(Order trade) {
     std::optional<double> pnl;
     if (trade.side == Side::BUY) {
         if (mode_ == Mode::FIFO) {
@@ -84,11 +84,6 @@ void TradeProcessor::Process(Trade trade) {
 
     // TODO(anirudh): Can there be traded but with zero pnl ?
     if (pnl) {
-        PublishPnl(trade.timestamp, trade.symbol, *pnl);
+        publisher_.Publish(trade.timestamp, symbol_, *pnl);
     }
-}
-
-void TradeProcessor::PublishPnl(uint32_t timestamp, std::string_view symbol, double pnl) {
-    // TODO(anirudh): Fix this poor man's csv writer.
-    std::cout << timestamp << "," << symbol << "," << pnl << std::endl;
 }

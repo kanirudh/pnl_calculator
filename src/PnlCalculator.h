@@ -8,6 +8,12 @@
 #include "CsvReader.h"
 #include "string_view"
 #include "TradeProcessor.h"
+#include "PnlPublisher.h"
+
+struct Event : public Order{
+    std::string symbol;
+};
+static_assert(sizeof(Event) == 48);
 
 
 // This is the main class acting as a mediator between all components for this standard utility
@@ -18,9 +24,10 @@ public:
     void Run();
 
 private:
-    static Trade ParseTrade(std::vector<std::string> tokens);
+    static Event ParseTrade(std::vector<std::string> tokens);
 
     CsvReader reader_;
+    PnlPublisher publisher_;
     std::unordered_map<std::string, TradeProcessor> symbol_to_processor_;
     std::string mode_;
 };

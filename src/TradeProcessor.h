@@ -8,6 +8,8 @@
 #include <cstdint>
 #include <vector>
 
+#include "PnlPublisherI.h"
+
 enum class Mode {
     LIFO = 0,
     FIFO = 1
@@ -18,29 +20,28 @@ enum class Side {
     SELL = 1
 };
 
-struct Trade {
+struct Order {
     uint32_t timestamp;
-    std::string symbol;
+    int quantity;
     Side side;
     double price;
     // Assuming quantity is an integer, I don't think the spec said anything about it.
-    int quantity;
 };
-static_assert(sizeof(Trade) == 56);
+static_assert(sizeof(Order) == 24);
 
 class TradeProcessor {
 public:
-    explicit TradeProcessor(std::string_view mode);
+    explicit TradeProcessor(std::string_view mode, std::string_view symbol, PnlPublisherI& publisher);
     ~TradeProcessor();
 
-    void Process(Trade trade);
+    void Process(Order trade);
 
 private:
-    static void PublishPnl(uint32_t timestamp, std::string_view symbol, double pnl);
-
     // NOTE: Based on the spec it seems some sort of short selling is allowed
-    std::vector<Trade> buy_orders_;
-    std::vector<Trade> sell_orders_;
+    std::vector<Order> buy_orders_;
+    std::vector<Order> sell_orders_;
+    PnlPublisherI& publisher_;
+    std::string symbol_;
     Mode mode_;
 };
 

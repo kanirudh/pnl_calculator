@@ -10,27 +10,24 @@ PnlCalculator::PnlCalculator(std::string_view input_file, std::string_view mode)
                                                                                    mode_(mode) {}
 
 void PnlCalculator::Run() {
-    // TODO(anirudh): Implement this.
      for (auto line = reader_.GetNext(); line; line = reader_.GetNext()) {
-         auto trade = ParseTrade(*line);
-         //std::cout << trade.symbol << trade.timestamp << trade.price << trade.quantity << std::endl;
-         if (auto itr = symbol_to_processor_.find(trade.symbol); itr != symbol_to_processor_.end()) {
-             itr->second.Process(trade);
+         auto event = ParseTrade(*line);
+         if (auto itr = symbol_to_processor_.find(event.symbol); itr != symbol_to_processor_.end()) {
+             itr->second.Process(static_cast<Order>(event));
          } else {
-             // TODO(anirudh): TradeProcessor should take symbol in trade constructor.
-             [[maybed_unused]] auto [new_itr, inserted] = symbol_to_processor_.emplace(trade.symbol, TradeProcessor(mode_));
-             new_itr->second.Process(trade);
+             [[maybed_unused]] auto [new_itr, inserted] = symbol_to_processor_.emplace(event.symbol, TradeProcessor(mode_, event.symbol, publisher_));
+             new_itr->second.Process(static_cast<Order>(event));
          }
     }
 }
 
-Trade PnlCalculator::ParseTrade(std::vector<std::string> tokens) {
+Event PnlCalculator::ParseTrade(std::vector<std::string> tokens) {
 
     if (tokens.size() != 5) {
         throw std::runtime_error("TradeProcessor::Process: wrong number of arguments");
     }
 
-    Trade trade;
+    Event trade;
     trade.timestamp = std::stoul(tokens[0]);
     trade.symbol = std::move(tokens[1]);
     trade.side = tokens[2][0] == 'B' ? Side::BUY : Side::SELL;
