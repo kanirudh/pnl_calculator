@@ -10,6 +10,8 @@ PnlCalculator::PnlCalculator(std::string_view input_file, std::string_view mode)
 
 void PnlCalculator::Run() {
     // TODO(anirudh): Implement this.
+    while (reader_.GetNext()) {
+    }
 }
 
 

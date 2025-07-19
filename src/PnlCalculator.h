@@ -10,7 +10,7 @@
 
 enum class MODE {
     LIFO = 0,
-    FIFI = 1
+    FIFO = 1
 };
 
 // This is the main class acting as a mediator between all components for this standard utility
