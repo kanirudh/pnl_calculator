@@ -4,13 +4,23 @@
 
 #include "PnlCalculator.h"
 
+#include <iostream>
+
 PnlCalculator::PnlCalculator(std::string_view input_file, std::string_view mode) : reader_(input_file),
-processor_(mode) {}
+                                                                                   mode_(mode) {}
 
 void PnlCalculator::Run() {
     // TODO(anirudh): Implement this.
-     for (auto line = reader_.GetNext(); not line; line = reader_.GetNext()) {
-        processor_.Process(ParseTrade(*line));
+     for (auto line = reader_.GetNext(); line; line = reader_.GetNext()) {
+         auto trade = ParseTrade(*line);
+         //std::cout << trade.symbol << trade.timestamp << trade.price << trade.quantity << std::endl;
+         if (auto itr = symbol_to_processor_.find(trade.symbol); itr != symbol_to_processor_.end()) {
+             itr->second.Process(trade);
+         } else {
+             // TODO(anirudh): TradeProcessor should take symbol in trade constructor.
+             [[maybed_unused]] auto [new_itr, inserted] = symbol_to_processor_.emplace(trade.symbol, TradeProcessor(mode_));
+             new_itr->second.Process(trade);
+         }
     }
 }
 

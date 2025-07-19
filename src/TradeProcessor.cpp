@@ -8,7 +8,7 @@
 #include <stdexcept>
 #include <__ostream/basic_ostream.h>
 
-TradeProcessor::TradeProcessor(std::string_view mode) : mode_(mode == "LIFO" ? Mode::LIFO : Mode::FIFO) {}
+TradeProcessor::TradeProcessor(std::string_view mode) : mode_(mode == "lifo" ? Mode::LIFO : Mode::FIFO) {}
 
 TradeProcessor::~TradeProcessor() {
     if (not buy_orders_.empty() or not sell_orders_.empty()) {
@@ -16,13 +16,15 @@ TradeProcessor::~TradeProcessor() {
     }
 }
 
-double ProcessLIFO(Trade trade, auto& resting, auto& aggressive, double sign) {
+std::optional<double> ProcessLIFO(Trade trade, auto& resting, auto& aggressive, double sign) {
     double pnl = 0;
+    int traded = 0;
     while (trade.quantity > 0 and not resting.empty()) {
         auto& other = resting.back();
         auto matched = std::min(other.quantity, trade.quantity);
         other.quantity -= matched;
         trade.quantity -= matched;
+        traded += matched;
 
         pnl += matched * (trade.price - other.price) * sign;
 
@@ -34,32 +36,38 @@ double ProcessLIFO(Trade trade, auto& resting, auto& aggressive, double sign) {
         // Enqueue the remaining order
         aggressive.push_back(trade);
     }
-    return pnl;
+    if (traded) {
+        return pnl;
+    }
+    return std::nullopt;
 }
 
-double ProcessFIFO(Trade trade, auto& resting, auto& aggressive, const double sign) {
+std::optional<double> ProcessFIFO(Trade trade, auto& resting, auto& aggressive, const double sign) {
     auto itr = resting.begin();
     double pnl = 0;
+    int traded = 0;
 
-    for (; itr != resting.end() and trade.quantity > 0; ++itr) {
+    for (; itr != resting.end() and trade.quantity > 0; ) {
         auto matched = std::min(itr->quantity, trade.quantity);
         trade.quantity -= matched;
-        trade.price += matched;
+        itr->quantity -= matched;
         pnl += matched * (trade.price - itr->price) * sign;
+        traded += matched;
+        itr += (itr->quantity == 0);
     }
-        // Check and remove the final traded orders.
-        if (itr->quantity == 0) {
-            ++itr;
-        }
-        resting.erase(resting.begin(), itr);
     if (trade.quantity > 0) {
         aggressive.emplace_back(trade);
     }
-    return pnl;
+    // Check and remove the final traded orders.
+        if (traded) {
+            resting.erase(resting.begin(), itr);
+            return pnl;
+        }
+    return std::nullopt;
 }
 
 void TradeProcessor::Process(Trade trade) {
-    double pnl = 0;
+    std::optional<double> pnl;
     if (trade.side == Side::BUY) {
         if (mode_ == Mode::FIFO) {
             pnl = ProcessFIFO(trade, sell_orders_, buy_orders_, -1);
@@ -75,8 +83,8 @@ void TradeProcessor::Process(Trade trade) {
     }
 
     // TODO(anirudh): Can there be traded but with zero pnl ?
-    if (pnl > 0) {
-        PublishPnl(trade.timestamp, trade.symbol, pnl);
+    if (pnl) {
+        PublishPnl(trade.timestamp, trade.symbol, *pnl);
     }
 }
 

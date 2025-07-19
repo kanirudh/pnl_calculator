@@ -26,8 +26,7 @@ CsvReader::CsvReader(std::string_view filename, const bool containsHeader) : fil
     if (not file_.is_open()) {
         throw std::runtime_error("Could not open file");
     }
-    if (auto h = GetNext(); h and containsHeader
-    ) {
+    if (auto h = GetNext(); h and containsHeader) {
         header_ = *h;
     }
 }
@@ -49,8 +48,9 @@ auto CsvReader::Tokenize(std::string_view input) -> std::vector<std::string> {
     auto itr = input.find(kDelimiter);
     for (; itr != std::string::npos; itr = input.find(kDelimiter)) {
         result.emplace_back(input.substr(0, itr));
+        input = input.substr(itr + 1);
     }
     // Input the last column
-    result.emplace_back(input.substr(0, itr));
+    result.emplace_back(input);
     return result;
 }

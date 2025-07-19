@@ -21,7 +21,8 @@ private:
     static Trade ParseTrade(std::vector<std::string> tokens);
 
     CsvReader reader_;
-    TradeProcessor processor_;
+    std::unordered_map<std::string, TradeProcessor> symbol_to_processor_;
+    std::string mode_;
 };
 
 
